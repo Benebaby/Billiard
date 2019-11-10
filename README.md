@@ -71,6 +71,13 @@ sudo pacman -S git gcc cmake glew glfw glm assimp eclipse-cpp
 ```
 
 Ubuntu:
+```
+Visual Studio Code:
+install C++; Cmake; Cmake Tools
+run sudo apt-get install gcc cmake glew-utils libglew-dev libglfw3-dev libglm-dev libassimp-dev
+choose compiler with cmake tools STRG+Shift+P search "select kits"
+run cmake configure and cmake build
+```
 ```bash
 sudo add-apt-repository universe
 sudo apt-get update
