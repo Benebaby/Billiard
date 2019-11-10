@@ -1,0 +1,318 @@
+#version 440
+#extension GL_ARB_bindless_texture : require
+#extension GL_NV_gpu_shader5 : require
+
+uniform vec4 lightPos;
+uniform vec3 from;
+uniform vec3 xvec;
+uniform vec3 yvec;
+uniform vec3 zvec;
+uniform vec3 eye;
+uniform float fov;
+uniform ivec2 image_size;
+
+struct Sphere {vec3 position; int matID; mat3 rotation; float radius;};
+struct Triangle {vec3 A; vec3 u; vec3 v; vec3 normal; int matID; vec3 na; bool hasNormals; vec3 nb; vec3 nc; vec2 ta; vec2 tb; vec2 tc;};
+struct Material{vec4 diffuse; vec3 specular; float shininess; int materialType; float reflectance; uint64_t diffuseTexture;};
+struct Ray {vec3 pos, dir;};
+struct Hit {bool isHit; bool isEnter; Ray ray; float t; int object; int id; vec3 barCoord; vec3 normal; vec2 texCoords; vec3 color; float reflectance;};
+//object: 1 = sphere, 2 = triangle
+
+Hit tempHit;
+Hit tempShadowHit;
+vec3 tempBar;
+
+layout(rgba8) uniform image2D image;
+
+layout(std430, binding = 1) readonly buffer spheres
+{
+    Sphere sceneS[];
+};
+layout(std430, binding = 2) readonly buffer triangles
+{
+    Triangle sceneT[];
+};
+layout(std430, binding = 3) readonly buffer mats
+{
+    Material materials[];
+};
+
+layout (local_size_x = 32, local_size_y = 32) in;
+
+
+float intersect_sphere(Sphere s, Ray r){
+	vec3 m = s.position - r.pos;
+	float b = dot(m, r.dir);
+	float mr2 = dot(m, m) - s.radius*s.radius;
+	if ((mr2 >= 0) && (b <= 0)) 
+		return -1.0f;
+	float disc = b*b - mr2;
+	if (disc < 0.0f) 
+		return -1.0f;
+	disc = sqrt(disc);
+	float t;
+	if (mr2 > 0) 
+		t = (b - disc);
+	else 
+		t = (b + disc);
+	if ((t < 0.0001f) || (t > 100000.0f)) 
+		return -1.0f;
+	return t;
+}
+
+float intersect_triangle(Triangle tri, Ray r){ 
+	vec3 dir = r.dir;
+	vec3 d_v = cross(dir, tri.v);
+	float det = dot(d_v, tri.u);
+	if (abs(det) < 0.0001f)
+		return -1.0f;
+	float invDet = 1.0f / det;
+	vec3 P = r.pos;
+	vec3 w = P - tri.A;
+	float s = dot(d_v, w) * invDet;
+	if (s < 0.f || s > 1.f)
+		return -1.0f;
+	vec3 w_u = cross( w, tri.u);
+	float t = dot(w_u, dir) * invDet;
+	if (t < 0.f || s + t > 1.f)
+		return -1.0f;
+	float l = dot( w_u, tri.v) * invDet;
+	if ((l < 0.f) || (l > 100000.0f))
+		return -1.0f;
+	tempBar = vec3( 1-s-t, s, t);
+	return l;
+}
+
+void calcNormal(){
+	if(tempHit.object == 1) {
+		vec3 point = tempHit.ray.pos + tempHit.ray.dir * tempHit.t;
+		tempHit.normal = normalize(point - sceneS[tempHit.id].position); 
+		return;
+	}if(tempHit.object == 2){
+		if(sceneT[tempHit.id].hasNormals)
+			tempHit.normal = normalize(tempHit.barCoord.x * sceneT[tempHit.id].na + tempHit.barCoord.y * sceneT[tempHit.id].nb + tempHit.barCoord.z * sceneT[tempHit.id].nc);
+		else 
+			tempHit.normal = sceneT[tempHit.id].normal;
+		return;
+	}
+	return;
+}
+
+void calcTexCoords(){
+	if(tempHit.object == 1){
+		vec3 tempNormal = sceneS[tempHit.id].rotation * tempHit.normal;
+		tempHit.texCoords.x = (1 + atan(tempNormal.z, tempNormal.x) / 3.14159f) * 0.5; 
+		tempHit.texCoords.y = acos(tempNormal.y) / 3.14159f;
+		return;
+	}
+	if(tempHit.object == 2){
+		tempHit.texCoords = tempHit.barCoord.x * sceneT[tempHit.id].ta + tempHit.barCoord.y * sceneT[tempHit.id].tb + tempHit.barCoord.z * sceneT[tempHit.id].tc;
+		return;
+	}
+	return;
+}
+
+void calcColor(){
+	if(tempHit.object == 1){
+		Material sMaterial = materials[sceneS[tempHit.id].matID];
+		if(sMaterial.materialType == 0)
+			tempHit.color = sMaterial.diffuse.xyz;
+		else if (sMaterial.materialType == 1){
+			sampler2D diffuseTexture = sampler2D(sMaterial.diffuseTexture);
+			calcTexCoords();
+			tempHit.color = texture(diffuseTexture, tempHit.texCoords).xyz;
+		}
+		return;
+	}
+	if(tempHit.object == 2){
+		Material tMaterial = materials[sceneT[tempHit.id].matID];
+		if(tMaterial.materialType == 0)
+			tempHit.color = tMaterial.diffuse.xyz;
+		else if(tMaterial.materialType == 1){
+			sampler2D diffuseTexture = sampler2D(tMaterial.diffuseTexture);
+			calcTexCoords();
+			tempHit.color = texture(diffuseTexture, tempHit.texCoords).xyz;
+		}
+		return;
+	}
+	return;
+}
+
+void anyIntersection()
+{
+	tempShadowHit.id = -1;
+	tempShadowHit.isHit = false;
+	tempShadowHit.t = -100000.0f;
+	tempShadowHit.object = 0;
+
+	for (int i=0; i<sceneS.length(); i++)
+	{
+		Sphere s = sceneS[i];
+		float temp = intersect_sphere(s, tempShadowHit.ray);
+		vec3 point = tempShadowHit.ray.pos + tempShadowHit.ray.dir * temp;
+		if (temp >= 0.0f && temp <= length(lightPos.xyz - point)){
+			tempShadowHit.isHit = true;
+			return;
+		}
+	}
+	for (int i=0; i<sceneT.length(); i++)
+	{
+		Triangle t = sceneT[i];
+		float temp = intersect_triangle(t, tempShadowHit.ray);
+		vec3 point = tempShadowHit.ray.pos + tempShadowHit.ray.dir * temp;
+		if (temp >= 0.0f && temp <= length(lightPos.xyz - point)){
+			tempShadowHit.isHit = true;
+			return;
+		}
+	}
+	return;
+}
+
+void closestIntersection()
+{
+	float nearestHit = 100000.0f;
+	tempHit.isHit = false;
+	tempHit.id = -1;
+	tempHit.t = 100000.0f;
+	tempHit.object = 0;
+	for (int i=0; i<sceneS.length(); i++)
+	{
+		Sphere s = sceneS[i];
+		float temp = intersect_sphere(s, tempHit.ray);
+		if (temp >= 0.0f){
+			tempHit.isHit = true;
+			if(temp < nearestHit){
+				tempHit.id = i;
+				tempHit.object = 1;
+				tempHit.t = temp;
+				nearestHit = temp;
+			}
+		}
+	}
+	for (int i=0; i<sceneT.length(); i++)
+	{
+		Triangle t = sceneT[i];
+		float temp = intersect_triangle(t, tempHit.ray);
+		if (temp >= 0.0f){
+			tempHit.isHit = true;
+			if(temp < nearestHit){
+				tempHit.id = i;
+				tempHit.object = 2;
+				tempHit.t = temp;
+				tempHit.barCoord = tempBar;
+				nearestHit = temp;
+			}
+		}
+	}
+	if(tempHit.isHit){
+		calcNormal();
+		calcColor();
+	}
+	return;
+}
+
+vec3 shade()
+{
+	vec4 l = lightPos;
+	vec3 lightVec;
+	vec3 point = tempHit.ray.pos + tempHit.ray.dir * tempHit.t;
+	if (l.w > 0.001f)
+		lightVec = normalize(vec3(l) - point);
+	else
+		lightVec = normalize(vec3(l));
+	vec3 normal = tempHit.normal;
+	vec3 reflectedLightVec = reflect(-lightVec, normal);
+	vec3 viewVec = normalize(eye - (tempHit.ray.pos + tempHit.ray.dir * tempHit.t));
+	float cosphi = max(dot(normal, lightVec), 0.0f);
+	float cospsi_n;
+	if(tempHit.object == 1){
+		cospsi_n = pow(max(dot(viewVec, reflectedLightVec), 0.0f), materials[sceneS[tempHit.id].matID].shininess);
+		return 0.2f * tempHit.color + (cosphi * tempHit.color + cospsi_n * materials[sceneS[tempHit.id].matID].specular);
+	}else{
+		cospsi_n = pow(max(dot(viewVec, reflectedLightVec), 0.0f), materials[sceneT[tempHit.id].matID].shininess);
+		return 0.2f * tempHit.color + (cosphi * tempHit.color + cospsi_n * materials[sceneT[tempHit.id].matID].specular);
+	}
+	
+}
+
+vec3 trace(){
+	vec3 color = vec3(0.0f);
+	closestIntersection();
+	if (tempHit.isHit){
+		vec3 lightDir;
+		if(lightPos.w > 0.001)
+			lightDir = normalize(lightPos.xyz - (tempHit.ray.pos + tempHit.ray.dir * tempHit.t));
+		else
+			lightDir = normalize(lightPos.xyz);
+		tempShadowHit.ray.pos = (tempHit.ray.pos + tempHit.ray.dir * tempHit.t) + 0.001f * tempHit.normal;
+		tempShadowHit.ray.dir = lightDir;
+		anyIntersection();
+		if (tempShadowHit.isHit){
+			color = 0.2f * tempHit.color;
+		}else{
+			color = shade();
+		}
+		tempHit.ray.pos = (tempHit.ray.pos + tempHit.ray.dir * tempHit.t) + 0.001f * tempHit.normal;
+		tempHit.ray.dir = normalize(reflect(tempHit.ray.dir, tempHit.normal));
+	}
+	return color;
+}
+
+void main()
+{
+	int w = image_size.x;
+	int h = image_size.y;
+	ivec2 storePos = ivec2(gl_GlobalInvocationID.xy);
+	int x = storePos.x;
+	int y = storePos.y;
+
+	float s = tan(radians(0.5f * fov));
+	float s_ = s * w / h;
+	vec3 bottomleft = from - zvec - s*yvec - s_*xvec;
+	vec3 steprightvec = xvec * (2.f*s_ / w);
+	vec3 stepupvec = yvec * (2.f*s / h);
+
+	float delta = 0.5f;
+	vec3 dir = ( bottomleft + ( x + delta ) * steprightvec + ( y + delta ) * stepupvec - from );
+	vec3 origin = from - zvec - s * yvec - s_ * xvec;
+	
+	int antialiasingFactor = 2;
+	int antialiasing = antialiasingFactor * antialiasingFactor;
+	float antialiasingStep = 1.0f / antialiasingFactor;
+
+	vec3 color = vec3(0.0f);
+	for (int a = 0; a < antialiasing; a++) {
+		float delta_x = a / antialiasingFactor * antialiasingStep + antialiasingStep / 2.0f;
+		float delta_y = a % antialiasingFactor * antialiasingStep + antialiasingStep / 2.0f;
+		vec3 dir = (origin + (x + delta_x) * steprightvec + (y + delta_y) * stepupvec - from);
+		Ray ray = Ray(from, normalize(dir));
+		tempHit.ray = ray;
+		color += trace();
+		if(tempHit.isHit == true){
+			Material mat;
+			if(tempHit.object == 1){
+				mat = materials[sceneS[tempHit.id].matID];
+			}
+			if(tempHit.object == 2){
+				mat = materials[sceneT[tempHit.id].matID];
+			}
+			if(mat.reflectance > 0.0f)
+				color += mat.reflectance * trace();
+		}
+		if(tempHit.isHit == true){
+			Material mat;
+			if(tempHit.object == 1){
+				mat = materials[sceneS[tempHit.id].matID];
+			}
+			if(tempHit.object == 2){
+				mat = materials[sceneT[tempHit.id].matID];
+			}
+			if(mat.reflectance > 0.0f)
+				color += mat.reflectance * trace();
+		}
+	}
+	color /= (float)antialiasing;
+
+
+	imageStore(image, storePos, vec4(color, 1.0f));
+}
