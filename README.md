@@ -1,4 +1,4 @@
-Billliard Simulation (Animation und Simulation WS1920):
+Billliard Simulation (Animation und Simulation WS1920)
 Autoren: Benedikt Krieger, André Neder, Daniel Remagen
 
 
