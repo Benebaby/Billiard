@@ -1,5 +1,5 @@
-Billliard Simulation (Animation und Simulation WS1920): 
-_Autoren: Benedikt Krieger, André Neder, Daniel Remagen_  
+Billliard Simulation (Animation und Simulation WS1920):
+Autoren: Benedikt Krieger, André Neder, Daniel Remagen
 
 
 Es handelt sich um das Framework, welches die Vorlesung "Computergrafik 2" begleitet. Das Framework enthält alles, was Sie zur Erstellung von Programmen mit OpenGL 3.3 oder höher benötigen. Dazu gehören unter anderem Klassen für Geometrie, Shader, Kameras, Projektionen und Texturen.
