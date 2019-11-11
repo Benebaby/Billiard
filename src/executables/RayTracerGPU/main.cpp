@@ -56,7 +56,6 @@ void initWindow() {
 	glfwSetWindowSizeCallback(window, &resizeCallback);
 	glfwMakeContextCurrent(window);
 	glewInit();
-	CompatibilityTools::checkCompatibility();
 }
 
 void initOpenGL() {
@@ -77,11 +76,11 @@ void initOpenGL() {
 	loc_image_size = glGetUniformLocation(rayTracerProgram->getProgramID(), "image_size");
 	loc_image = glGetUniformLocation(rayTracerProgram->getProgramID(), "image");
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	std::cout << "** ComputeShader Specs **" << std::endl;
 	scene = new Scene(rayTracerProgram->getProgramID());
 	quad = new ScreenQuad();
 	image = new Texture(WIDTH, HEIGHT, 4);
 	GLint data = 0;
+	CompatibilityTools::checkCompatibility();
 	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0, &data);
 	std::cout << "GL_MAX_COMPUTE_WORK_GROUP_SIZE: " << data;
 	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 1, &data);
