@@ -69,7 +69,7 @@ ENDIF()
 
 if("${CMAKE_SYSTEM}" MATCHES "Linux")
 	find_package(X11)
-	set(DEFAULT_LIBS ${DEFAULT_LIBS} ${X11_LIBRARIES} Xrandr Xxf86vm Xi pthread)
+	set(DEFAULT_LIBS ${DEFAULT_LIBS} ${CMAKE_DL_LIBS} ${X11_LIBRARIES} Xrandr Xxf86vm Xi pthread)
 endif()
 
 
