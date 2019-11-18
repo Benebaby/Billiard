@@ -2,7 +2,6 @@
 #extension GL_ARB_bindless_texture : require
 #extension GL_NV_gpu_shader5 : require
 
-uniform vec4 lightPos;
 uniform vec3 from;
 uniform vec3 xvec;
 uniform vec3 yvec;
@@ -14,6 +13,7 @@ uniform ivec2 image_size;
 struct Sphere {vec3 position; int matID; mat3 rotation; float radius;};
 struct Triangle {vec3 A; vec3 u; vec3 v; vec3 normal; int matID; vec3 na; bool hasNormals; vec3 nb; vec3 nc; vec2 ta; vec2 tb; vec2 tc;};
 struct Material{vec4 diffuse; vec3 specular; float shininess; int materialType; float reflectance; uint64_t diffuseTexture;};
+struct Light{vec3 pos; vec3 color; int type;};
 struct Ray {vec3 pos, dir;};
 struct Hit {bool isHit; bool isEnter; Ray ray; float t; int object; int id; vec3 barCoord; vec3 normal; vec2 texCoords; vec3 color; float reflectance;};
 //object: 1 = sphere, 2 = triangle
@@ -35,6 +35,10 @@ layout(std430, binding = 2) readonly buffer triangles
 layout(std430, binding = 3) readonly buffer mats
 {
     Material materials[];
+};
+layout(std430, binding = 4) readonly buffer lits
+{
+    Light lights[];
 };
 
 layout (local_size_x = 32, local_size_y = 32) in;
@@ -138,7 +142,7 @@ void calcColor(){
 	return;
 }
 
-void anyIntersection()
+void anyIntersection(Light light)
 {
 	tempShadowHit.id = -1;
 	tempShadowHit.isHit = false;
@@ -150,7 +154,7 @@ void anyIntersection()
 		Sphere s = sceneS[i];
 		float temp = intersect_sphere(s, tempShadowHit.ray);
 		vec3 point = tempShadowHit.ray.pos + tempShadowHit.ray.dir * temp;
-		if (temp >= 0.0f && temp <= length(lightPos.xyz - point)){
+		if (temp >= 0.0f && temp <= length(light.pos - point)){
 			tempShadowHit.isHit = true;
 			return;
 		}
@@ -160,7 +164,7 @@ void anyIntersection()
 		Triangle t = sceneT[i];
 		float temp = intersect_triangle(t, tempShadowHit.ray);
 		vec3 point = tempShadowHit.ray.pos + tempShadowHit.ray.dir * temp;
-		if (temp >= 0.0f && temp <= length(lightPos.xyz - point)){
+		if (temp >= 0.0f && temp <= length(light.pos - point)){
 			tempShadowHit.isHit = true;
 			return;
 		}
@@ -211,26 +215,25 @@ void closestIntersection()
 	return;
 }
 
-vec3 shade()
+vec3 shade(Light light)
 {
-	vec4 l = lightPos;
 	vec3 lightVec;
 	vec3 point = tempHit.ray.pos + tempHit.ray.dir * tempHit.t;
-	if (l.w > 0.001f)
-		lightVec = normalize(vec3(l) - point);
+	if (light.type == 1)
+		lightVec = normalize(light.pos - point);
 	else
-		lightVec = normalize(vec3(l));
+		lightVec = normalize(light.pos);
 	vec3 normal = tempHit.normal;
 	vec3 reflectedLightVec = reflect(-lightVec, normal);
-	vec3 viewVec = normalize(eye - (tempHit.ray.pos + tempHit.ray.dir * tempHit.t));
+	vec3 viewVec = normalize(eye - point);
 	float cosphi = max(dot(normal, lightVec), 0.0f);
 	float cospsi_n;
 	if(tempHit.object == 1){
 		cospsi_n = pow(max(dot(viewVec, reflectedLightVec), 0.0f), materials[sceneS[tempHit.id].matID].shininess);
-		return 0.2f * tempHit.color + (cosphi * tempHit.color + cospsi_n * materials[sceneS[tempHit.id].matID].specular);
+		return 0.1f * tempHit.color + (cosphi * tempHit.color + cospsi_n * materials[sceneS[tempHit.id].matID].specular) * light.color;
 	}else{
 		cospsi_n = pow(max(dot(viewVec, reflectedLightVec), 0.0f), materials[sceneT[tempHit.id].matID].shininess);
-		return 0.2f * tempHit.color + (cosphi * tempHit.color + cospsi_n * materials[sceneT[tempHit.id].matID].specular);
+		return 0.1f * tempHit.color + (cosphi * tempHit.color + cospsi_n * materials[sceneT[tempHit.id].matID].specular) * light.color;
 	}
 	
 }
@@ -240,18 +243,23 @@ vec3 trace(){
 	closestIntersection();
 	if (tempHit.isHit){
 		vec3 lightDir;
-		if(lightPos.w > 0.001)
-			lightDir = normalize(lightPos.xyz - (tempHit.ray.pos + tempHit.ray.dir * tempHit.t));
-		else
-			lightDir = normalize(lightPos.xyz);
-		tempShadowHit.ray.pos = (tempHit.ray.pos + tempHit.ray.dir * tempHit.t) + 0.001f * tempHit.normal;
-		tempShadowHit.ray.dir = lightDir;
-		anyIntersection();
-		if (tempShadowHit.isHit){
-			color = 0.2f * tempHit.color;
-		}else{
-			color = shade();
+		vec3 point = tempHit.ray.pos + tempHit.ray.dir * tempHit.t;
+		tempShadowHit.ray.pos = point + 0.001f * tempHit.normal;
+		for(int i = 0; i < lights.length(); i++){
+			if(lights[0].type == 1)
+				lightDir = normalize(lights[i].pos - point);
+			else
+				lightDir = normalize(lights[i].pos);
+			tempShadowHit.ray.dir = lightDir;
+			anyIntersection(lights[i]);
+			if (tempShadowHit.isHit){
+				color += 0.1f * tempHit.color;
+			}else{
+				color += shade(lights[i]);
+			}
 		}
+		color /= lights.length();
+
 		tempHit.ray.pos = (tempHit.ray.pos + tempHit.ray.dir * tempHit.t) + 0.001f * tempHit.normal;
 		tempHit.ray.dir = normalize(reflect(tempHit.ray.dir, tempHit.normal));
 	}
@@ -276,7 +284,7 @@ void main()
 	vec3 dir = ( bottomleft + ( x + delta ) * steprightvec + ( y + delta ) * stepupvec - from );
 	vec3 origin = from - zvec - s * yvec - s_ * xvec;
 	
-	int antialiasingFactor = 2;
+	int antialiasingFactor = 1;
 	int antialiasing = antialiasingFactor * antialiasingFactor;
 	float antialiasingStep = 1.0f / antialiasingFactor;
 

@@ -1,7 +1,5 @@
 #pragma once
-#include <glm/glm.hpp>
-#include <GL/glew.h>
-#include <GLFW/glfw3.h>
+#include <Tools/Defs.h>
 
 class Material
 {

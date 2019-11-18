@@ -1,5 +1,5 @@
 #pragma once
-#include <glm/glm.hpp>
+#include <Tools/Defs.h>
 
 class Triangle
 {

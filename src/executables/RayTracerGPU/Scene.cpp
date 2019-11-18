@@ -4,6 +4,7 @@ Scene::Scene(GLuint ProgramID) {
 	glGenBuffers(1, &ssbos);
 	glGenBuffers(1, &ssbot);
 	glGenBuffers(1, &ssbom);
+	glGenBuffers(1, &ssbol);
 }
 
 void Scene::addSphere(Sphere s) {
@@ -26,6 +27,10 @@ void Scene::addMesh(Mesh mesh)
 	triangles.reserve(triangles.size() + b.size());
 	triangles.insert(triangles.end(), b.begin(), b.end());
 	b.clear();
+}
+
+void Scene::addLight(Light light){
+	lights.push_back(light);
 }
 
 void Scene::createStartTri(glm::vec2 pos, float offset)
@@ -141,4 +146,8 @@ void Scene::render() {
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbom);
 	glBufferData(GL_SHADER_STORAGE_BUFFER, materials.size() * sizeof(Material), materials.data(), GL_STATIC_DRAW);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, ssbom);
+
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbol);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, lights.size() * sizeof(Light), lights.data(), GL_STATIC_DRAW);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, ssbol);
 }

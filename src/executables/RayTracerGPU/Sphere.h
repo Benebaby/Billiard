@@ -1,5 +1,5 @@
 #pragma once
-#include <glm/ext.hpp>
+#include <Tools/Defs.h>
 
 class Sphere
 {

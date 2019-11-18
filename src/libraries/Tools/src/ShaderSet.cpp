@@ -160,7 +160,7 @@ void ShaderSet::loadShaderSource(GLint shaderID, const char* fileName) {
 		std::cout << "ERROR: Unable to open file " << fileName << std::endl;
 
 	const char* source = fileContent.c_str();
-	const GLint source_size = strlen(source);
+	const GLint source_size = (GLint) strlen(source);
 
 	glShaderSource(shaderID, 1, &source, &source_size);
 }

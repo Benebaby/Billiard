@@ -1,10 +1,7 @@
 #pragma once
-#include <GL/glew.h>
-#include <GLFW/glfw3.h>
-#include <glm/ext.hpp>
+#include <Tools/Defs.h>
 #include <string>
 #include <vector>
-#include <iostream>
 #include <fstream>
 #include "Triangle.h"
 

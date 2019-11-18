@@ -1,13 +1,12 @@
-#ifndef __DEFS_H
-#define __DEFS_H
+#pragma once
 
-#include <vector>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/ext.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
+#include <iostream>
 
 #define VERTICES 0
 #define NORMALS 1
@@ -35,6 +34,4 @@
 #define MAT_TRANSPARENCY_BIT 8
 
 #define INVALID_OGL_VALUE 0xFFFFFFFF
-
-#endif /* __DEFS_H */
 
