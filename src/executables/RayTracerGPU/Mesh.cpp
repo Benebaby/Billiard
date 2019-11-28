@@ -102,14 +102,15 @@ void Mesh::readObj(std::string filename) {
 	inFile.close();
 	for (int x = 0; x < m_vertecies.size(); x = x+3)
 	{
-		m_polygons.push_back(Triangle(m_vertecies[x], m_vertecies[x + 1], m_vertecies[x + 2], m_normals[x], m_normals[x + 1], m_normals[x + 2], m_texCoords[x] * 8.0f, m_texCoords[x + 1] * 8.0f, m_texCoords[x + 2] * 8.0f, 16));
+		m_polygons.push_back(Triangle(m_vertecies[x], m_vertecies[x + 1], m_vertecies[x + 2], m_normals[x], m_normals[x + 1], m_normals[x + 2], m_texCoords[x] * 8.0f, m_texCoords[x + 1] * 8.0f, m_texCoords[x + 2] * 8.0f, m_MatID));
 	}
 	std::cout << "Mesh " << filename << " loaded with: " << i << " vertecies, " << j << " normals, " << k << " texcoords, " << f << " triangles" << std::endl;
 	std::cout << b - a << " sec to read file :)" << std::endl;
 }
 
-Mesh::Mesh(std::string filename)
+Mesh::Mesh(std::string filename, int matID)
 {
+	m_MatID = matID;
 	m_filename = filename;
 	readObj(filename);
 }

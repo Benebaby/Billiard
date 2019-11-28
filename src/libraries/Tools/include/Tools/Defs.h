@@ -18,7 +18,7 @@
 
 #define NO_TEXTURE_BIT 0
 #define COLOR_TEXTURE_BIT 1
-#define SHADOW_TEXTURE_BIT 2 //will be extend to a list of SMs
+#define SHADOW_TEXTURE_BIT 2
 #define NORMAL_TEXTURE_BIT 4
 
 #define VERTEX_SHADER_BIT 1
@@ -32,6 +32,9 @@
 #define MAT_DIFFUSE_BIT 2
 #define MAT_SPECULAR_BIT 4
 #define MAT_TRANSPARENCY_BIT 8
+
+#define LIGHT_DIR 0
+#define LIGHT_POINT 1
 
 #define INVALID_OGL_VALUE 0xFFFFFFFF
 

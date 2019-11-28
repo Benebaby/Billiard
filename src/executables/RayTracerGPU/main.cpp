@@ -118,13 +118,14 @@ int main(void)
 
 	scene->createStartTri(glm::vec2(-20.503432, 0.0f), 0.05f);
 	scene->addSphere(Sphere(glm::vec3(20.503432, 1.0f, 0.0f), 1.0f, glm::vec3(-40.0f, 0.0f, glm::linearRand(-0.5f, 0.5f)), 15));
-	scene->addMesh(Mesh("/models/box.obj"));
-	scene->addLight(Light(1, glm::vec3(-26.19883f, 19.649122, 0.0f), glm::vec3(1.0f, 0.839215f, 0.666666f)));
-	scene->addLight(Light(1, glm::vec3(0.0f, 19.649122, 0.0f), glm::vec3(1.0f, 0.839215f, 0.666666f)));
-	scene->addLight(Light(1, glm::vec3(26.19883f, 19.649122, 0.0f), glm::vec3(1.0f, 0.839215f, 0.666666f)));
-	// scene->addLight(Light(1, glm::vec3(-26.19883f, 19.649122, 0.0f), glm::vec3(1.f, 0.f, 0.f)));
-	// scene->addLight(Light(1, glm::vec3(0.0f, 19.649122, 0.0f), glm::vec3(0.f, 1.f, 0.f)));
-	// scene->addLight(Light(1, glm::vec3(26.19883f, 19.649122, 0.0f), glm::vec3(0.f, 0.f, 1.f)));
+	scene->addMesh(Mesh("/models/box.obj", 17));
+	// scene->addMesh(Mesh("/models/monkey.obj", 17));
+	// scene->addLight(Light(1, glm::vec3(-26.19883f, 19.649122, 0.0f), glm::vec3(1.0f, 0.839215f, 0.666666f)));
+	// scene->addLight(Light(1, glm::vec3(0.0f, 19.649122, 0.0f), glm::vec3(1.0f, 0.839215f, 0.666666f)));
+	// scene->addLight(Light(1, glm::vec3(26.19883f, 19.649122, 0.0f), glm::vec3(1.0f, 0.839215f, 0.666666f)));
+	scene->addLight(Light(LIGHT_POINT, glm::vec3(-26.19883f, 19.649122, 0.0f), glm::vec3(1.f, 0.f, 1.f)));
+	scene->addLight(Light(LIGHT_POINT, glm::vec3(0.0f, 19.649122, 0.0f), glm::vec3(0.f, 1.f, 1.f)));
+	scene->addLight(Light(LIGHT_POINT, glm::vec3(26.19883f, 19.649122, 0.0f), glm::vec3(1.f, 1.f, 0.f)));
 	float ballreflectivness = 0.2f;
 	for (unsigned int i = 1; i < 16; i++)
 	{
@@ -132,7 +133,8 @@ int main(void)
 		scene->addMaterial(Material(Texture(path).getTextureID(), glm::vec3(1.0f), 100.0f, ballreflectivness));
 	}
 	scene->addMaterial(Material(glm::vec4(0.964843f, 0.945312f, 0.828125f, 1.0f), glm::vec3(1.0f), 100.0f, ballreflectivness));
-	scene->addMaterial(Material(Texture("/textures/marble_dark.png").getTextureID(), glm::vec3(1.0f), 100.0f, 0.2f));
+	scene->addMaterial(Material(Texture("/textures/checker.png").getTextureID(), glm::vec3(1.0f), 100.0f, 0.2f));
+	scene->addMaterial(Material(Texture("/textures/marble_dark.png").getTextureID(), glm::vec3(1.0f), 100.0f, 0.0f));
 
 	double time = glfwGetTime();
 	double deltaTime;
