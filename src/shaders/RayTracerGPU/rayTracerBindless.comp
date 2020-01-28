@@ -6,7 +6,6 @@ uniform vec3 from;
 uniform vec3 xvec;
 uniform vec3 yvec;
 uniform vec3 zvec;
-uniform vec3 eye;
 uniform float fov;
 uniform ivec2 image_size;
 
@@ -225,7 +224,7 @@ vec3 shade(Light light)
 		lightVec = normalize(light.pos);
 	vec3 normal = tempHit.normal;
 	vec3 reflectedLightVec = reflect(-lightVec, normal);
-	vec3 viewVec = normalize(eye - point);
+	vec3 viewVec = normalize(from - point);
 	float cosphi = max(dot(normal, lightVec), 0.0f);
 	float cospsi_n;
 	if(tempHit.object == 1){

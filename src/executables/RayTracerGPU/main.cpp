@@ -22,9 +22,8 @@ ShaderSet *rayTracerProgram;
 ShaderSet *showImageProgram;
 ScreenQuad *quad;
 Texture *image;
-Texture *test;
 Scene *scene;
-GLuint loc_from, loc_xvec, loc_yvec, loc_zvec, loc_Eye, loc_image_size, loc_image, loc_FOV;
+GLuint loc_from, loc_xvec, loc_yvec, loc_zvec, loc_image_size, loc_image, loc_FOV;
 
 void ScrollCallback(GLFWwindow *window, double xoffset, double yoffset)
 {
@@ -72,7 +71,6 @@ void initOpenGL()
 	loc_xvec = glGetUniformLocation(rayTracerProgram->getProgramID(), "xvec");
 	loc_yvec = glGetUniformLocation(rayTracerProgram->getProgramID(), "yvec");
 	loc_zvec = glGetUniformLocation(rayTracerProgram->getProgramID(), "zvec");
-	loc_Eye = glGetUniformLocation(rayTracerProgram->getProgramID(), "eye");
 	loc_FOV = glGetUniformLocation(rayTracerProgram->getProgramID(), "fov");
 	loc_image_size = glGetUniformLocation(rayTracerProgram->getProgramID(), "image_size");
 	loc_image = glGetUniformLocation(rayTracerProgram->getProgramID(), "image");
@@ -88,12 +86,10 @@ void rayTraceImage()
 	rayTracerProgram->UseProgram();
 	glm::vec3 from, xvec, yvec, zvec;
 	cam->getView(&xvec, &yvec, &zvec, &from);
-	glm::vec3 eye = cam->getEye();
 	glUniform3f(loc_from, from.x, from.y, from.z);
 	glUniform3f(loc_xvec, xvec.x, xvec.y, xvec.z);
 	glUniform3f(loc_yvec, yvec.x, yvec.y, yvec.z);
 	glUniform3f(loc_zvec, zvec.x, zvec.y, zvec.z);
-	glUniform3f(loc_Eye, eye.x, eye.y, eye.z);
 	glUniform1f(loc_FOV, cam->getFov());
 	scene->render();
 	glUniform2i(loc_image_size, image->getWidth(), image->getHeight());
